@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
-using MinHook;
+using EasyHook;
 using HardwareHook.Core.Configuration;
 using HardwareHook.Core.Logging;
 
@@ -14,15 +14,6 @@ namespace HardwareHook.Core.Hooking
     /// </summary>
     public class HookManager
     {
-        // 原始函数指针
-        private static IntPtr _getSystemInfoPtr;
-        private static IntPtr _getNativeSystemInfoPtr;
-        private static IntPtr _getVolumeInformationWPtr;
-        private static IntPtr _deviceIoControlPtr;
-        private static IntPtr _getAdaptersInfoPtr;
-        private static IntPtr _regOpenKeyExPtr;
-        private static IntPtr _regQueryValueExPtr;
-
         // 原始函数委托
         private static DGetSystemInfo _originalGetSystemInfo;
         private static DGetNativeSystemInfo _originalGetNativeSystemInfo;
@@ -32,10 +23,18 @@ namespace HardwareHook.Core.Hooking
         private static DRegOpenKeyEx _originalRegOpenKeyEx;
         private static DRegQueryValueEx _originalRegQueryValueEx;
 
+        // Hook实例
+        private static LocalHook _getSystemInfoHook;
+        private static LocalHook _getNativeSystemInfoHook;
+        private static LocalHook _getVolumeInformationWHook;
+        private static LocalHook _deviceIoControlHook;
+        private static LocalHook _getAdaptersInfoHook;
+        private static LocalHook _regOpenKeyExHook;
+        private static LocalHook _regQueryValueExHook;
+
         private static HardwareConfig _config;
         private static ILogger _logger;
         private static bool _isHooked;
-        private static bool _minHookInitialized;
         private static WindowsVersion _windowsVersion;
 
         /// <summary>
@@ -69,18 +68,6 @@ namespace HardwareHook.Core.Hooking
                 // 获取Hook策略
                 HookStrategy strategy = GetHookStrategy(_windowsVersion);
                 _logger?.Info($"Using hook strategy: Cpu={strategy.EnableCpuHooks}, Disk={strategy.EnableDiskHooks}, Mac={strategy.EnableMacHooks}, Motherboard={strategy.EnableMotherboardHooks}, ModernApi={strategy.UseModernApi}");
-
-                // 初始化MinHook
-                if (!_minHookInitialized)
-                {
-                    var result = MH_Initialize();
-                    if (result != MH_STATUS.MH_OK)
-                    {
-                        throw new Exception($"Failed to initialize MinHook: {result}");
-                    }
-                    _minHookInitialized = true;
-                    _logger?.Info("MinHook initialized successfully");
-                }
 
                 // 安装CPU相关Hook
                 if (strategy.EnableCpuHooks)
@@ -122,13 +109,6 @@ namespace HardwareHook.Core.Hooking
                     _logger?.Info("Skipping motherboard hooks based on strategy");
                 }
 
-                // 启用所有Hook
-                var enableResult = MH_EnableHook(MH_ALL_HOOKS);
-                if (enableResult != MH_STATUS.MH_OK)
-                {
-                    throw new Exception($"Failed to enable hooks: {enableResult}");
-                }
-
                 _isHooked = true;
                 _logger?.Info("All hooks installed successfully");
             }
@@ -149,33 +129,26 @@ namespace HardwareHook.Core.Hooking
             {
                 if (_isHooked)
                 {
-                    // 禁用所有Hook
-                    var disableResult = MH_DisableHook(MH_ALL_HOOKS);
-                    if (disableResult != MH_STATUS.MH_OK)
-                    {
-                        _logger?.Error($"Failed to disable hooks: {disableResult}");
-                    }
+                    // 卸载所有Hook
+                    _getSystemInfoHook?.Dispose();
+                    _getNativeSystemInfoHook?.Dispose();
+                    _getVolumeInformationWHook?.Dispose();
+                    _deviceIoControlHook?.Dispose();
+                    _getAdaptersInfoHook?.Dispose();
+                    _regOpenKeyExHook?.Dispose();
+                    _regQueryValueExHook?.Dispose();
 
-                    // 移除所有Hook
-                    var removeResult = MH_RemoveHook(MH_ALL_HOOKS);
-                    if (removeResult != MH_STATUS.MH_OK)
-                    {
-                        _logger?.Error($"Failed to remove hooks: {removeResult}");
-                    }
+                    // 重置Hook实例
+                    _getSystemInfoHook = null;
+                    _getNativeSystemInfoHook = null;
+                    _getVolumeInformationWHook = null;
+                    _deviceIoControlHook = null;
+                    _getAdaptersInfoHook = null;
+                    _regOpenKeyExHook = null;
+                    _regQueryValueExHook = null;
 
                     _isHooked = false;
                     _logger?.Info("All hooks uninstalled");
-                }
-
-                // 清理MinHook
-                if (_minHookInitialized)
-                {
-                    var uninitResult = MH_Uninitialize();
-                    if (uninitResult != MH_STATUS.MH_OK)
-                    {
-                        _logger?.Error($"Failed to uninitialize MinHook: {uninitResult}");
-                    }
-                    _minHookInitialized = false;
                 }
             }
             catch (Exception ex)
@@ -191,22 +164,25 @@ namespace HardwareHook.Core.Hooking
         {
             try
             {
-                // 获取函数地址
-                _getSystemInfoPtr = GetProcAddress("kernel32.dll", "GetSystemInfo");
-                _getNativeSystemInfoPtr = GetProcAddress("kernel32.dll", "GetNativeSystemInfo");
+                // 安装GetSystemInfo Hook
+                _getSystemInfoHook = LocalHook.Create(
+                    LocalHook.GetProcAddress("kernel32.dll", "GetSystemInfo"),
+                    new DGetSystemInfo(GetSystemInfoHook),
+                    null);
 
-                // 创建Hook
-                var result1 = MH_CreateHook(_getSystemInfoPtr, typeof(HookManager).GetMethod("GetSystemInfoHook"), out IntPtr getSystemInfoTrampoline);
-                var result2 = MH_CreateHook(_getNativeSystemInfoPtr, typeof(HookManager).GetMethod("GetNativeSystemInfoHook"), out IntPtr getNativeSystemInfoTrampoline);
+                // 安装GetNativeSystemInfo Hook
+                _getNativeSystemInfoHook = LocalHook.Create(
+                    LocalHook.GetProcAddress("kernel32.dll", "GetNativeSystemInfo"),
+                    new DGetNativeSystemInfo(GetNativeSystemInfoHook),
+                    null);
 
-                if (result1 != MH_STATUS.MH_OK || result2 != MH_STATUS.MH_OK)
-                {
-                    throw new Exception($"Failed to create CPU hooks: {result1}, {result2}");
-                }
+                // 启用Hook
+                _getSystemInfoHook.ThreadACL.SetExclusiveACL(new int[0]);
+                _getNativeSystemInfoHook.ThreadACL.SetExclusiveACL(new int[0]);
 
-                // 获取原始函数委托
-                _originalGetSystemInfo = Marshal.GetDelegateForFunctionPointer<DGetSystemInfo>(getSystemInfoTrampoline);
-                _originalGetNativeSystemInfo = Marshal.GetDelegateForFunctionPointer<DGetNativeSystemInfo>(getNativeSystemInfoTrampoline);
+                // 获取原始函数（使用EasyHook的正确方式）
+                _originalGetSystemInfo = GetSystemInfo;
+                _originalGetNativeSystemInfo = GetNativeSystemInfo;
 
                 _logger?.Info("CPU hooks installed");
             }
@@ -224,22 +200,25 @@ namespace HardwareHook.Core.Hooking
         {
             try
             {
-                // 获取函数地址
-                _getVolumeInformationWPtr = GetProcAddress("kernel32.dll", "GetVolumeInformationW");
-                _deviceIoControlPtr = GetProcAddress("kernel32.dll", "DeviceIoControl");
+                // 安装GetVolumeInformationW Hook
+                _getVolumeInformationWHook = LocalHook.Create(
+                    LocalHook.GetProcAddress("kernel32.dll", "GetVolumeInformationW"),
+                    new DGetVolumeInformationW(GetVolumeInformationWHook),
+                    null);
 
-                // 创建Hook
-                var result1 = MH_CreateHook(_getVolumeInformationWPtr, typeof(HookManager).GetMethod("GetVolumeInformationWHook"), out IntPtr getVolumeInformationWTrampoline);
-                var result2 = MH_CreateHook(_deviceIoControlPtr, typeof(HookManager).GetMethod("DeviceIoControlHook"), out IntPtr deviceIoControlTrampoline);
+                // 安装DeviceIoControl Hook
+                _deviceIoControlHook = LocalHook.Create(
+                    LocalHook.GetProcAddress("kernel32.dll", "DeviceIoControl"),
+                    new DDeviceIoControl(DeviceIoControlHook),
+                    null);
 
-                if (result1 != MH_STATUS.MH_OK || result2 != MH_STATUS.MH_OK)
-                {
-                    throw new Exception($"Failed to create disk hooks: {result1}, {result2}");
-                }
+                // 启用Hook
+                _getVolumeInformationWHook.ThreadACL.SetExclusiveACL(new int[0]);
+                _deviceIoControlHook.ThreadACL.SetExclusiveACL(new int[0]);
 
-                // 获取原始函数委托
-                _originalGetVolumeInformationW = Marshal.GetDelegateForFunctionPointer<DGetVolumeInformationW>(getVolumeInformationWTrampoline);
-                _originalDeviceIoControl = Marshal.GetDelegateForFunctionPointer<DDeviceIoControl>(deviceIoControlTrampoline);
+                // 获取原始函数（使用EasyHook的正确方式）
+                _originalGetVolumeInformationW = GetVolumeInformationW;
+                _originalDeviceIoControl = DeviceIoControl;
 
                 _logger?.Info("Disk hooks installed");
             }
@@ -257,19 +236,17 @@ namespace HardwareHook.Core.Hooking
         {
             try
             {
-                // 获取函数地址
-                _getAdaptersInfoPtr = GetProcAddress("iphlpapi.dll", "GetAdaptersInfo");
+                // 安装GetAdaptersInfo Hook
+                _getAdaptersInfoHook = LocalHook.Create(
+                    LocalHook.GetProcAddress("iphlpapi.dll", "GetAdaptersInfo"),
+                    new DGetAdaptersInfo(GetAdaptersInfoHook),
+                    null);
 
-                // 创建Hook
-                var result = MH_CreateHook(_getAdaptersInfoPtr, typeof(HookManager).GetMethod("GetAdaptersInfoHook"), out IntPtr getAdaptersInfoTrampoline);
+                // 启用Hook
+                _getAdaptersInfoHook.ThreadACL.SetExclusiveACL(new int[0]);
 
-                if (result != MH_STATUS.MH_OK)
-                {
-                    throw new Exception($"Failed to create MAC hooks: {result}");
-                }
-
-                // 获取原始函数委托
-                _originalGetAdaptersInfo = Marshal.GetDelegateForFunctionPointer<DGetAdaptersInfo>(getAdaptersInfoTrampoline);
+                // 获取原始函数（使用EasyHook的正确方式）
+                _originalGetAdaptersInfo = GetAdaptersInfo;
 
                 _logger?.Info("MAC hooks installed");
             }
@@ -287,22 +264,25 @@ namespace HardwareHook.Core.Hooking
         {
             try
             {
-                // 获取函数地址
-                _regOpenKeyExPtr = GetProcAddress("advapi32.dll", "RegOpenKeyExW");
-                _regQueryValueExPtr = GetProcAddress("advapi32.dll", "RegQueryValueExW");
+                // 安装RegOpenKeyEx Hook
+                _regOpenKeyExHook = LocalHook.Create(
+                    LocalHook.GetProcAddress("advapi32.dll", "RegOpenKeyExW"),
+                    new DRegOpenKeyEx(RegOpenKeyExHook),
+                    null);
 
-                // 创建Hook
-                var result1 = MH_CreateHook(_regOpenKeyExPtr, typeof(HookManager).GetMethod("RegOpenKeyExHook"), out IntPtr regOpenKeyExTrampoline);
-                var result2 = MH_CreateHook(_regQueryValueExPtr, typeof(HookManager).GetMethod("RegQueryValueExHook"), out IntPtr regQueryValueExTrampoline);
+                // 安装RegQueryValueEx Hook
+                _regQueryValueExHook = LocalHook.Create(
+                    LocalHook.GetProcAddress("advapi32.dll", "RegQueryValueExW"),
+                    new DRegQueryValueEx(RegQueryValueExHook),
+                    null);
 
-                if (result1 != MH_STATUS.MH_OK || result2 != MH_STATUS.MH_OK)
-                {
-                    throw new Exception($"Failed to create motherboard hooks: {result1}, {result2}");
-                }
+                // 启用Hook
+                _regOpenKeyExHook.ThreadACL.SetExclusiveACL(new int[0]);
+                _regQueryValueExHook.ThreadACL.SetExclusiveACL(new int[0]);
 
-                // 获取原始函数委托
-                _originalRegOpenKeyEx = Marshal.GetDelegateForFunctionPointer<DRegOpenKeyEx>(regOpenKeyExTrampoline);
-                _originalRegQueryValueEx = Marshal.GetDelegateForFunctionPointer<DRegQueryValueEx>(regQueryValueExTrampoline);
+                // 获取原始函数（使用EasyHook的正确方式）
+                _originalRegOpenKeyEx = RegOpenKeyEx;
+                _originalRegQueryValueEx = RegQueryValueEx;
 
                 _logger?.Info("Motherboard hooks installed");
             }
@@ -312,76 +292,6 @@ namespace HardwareHook.Core.Hooking
                 // 不抛出异常，允许其他钩子继续安装
             }
         }
-
-        /// <summary>
-        /// 获取函数地址
-        /// </summary>
-        /// <param name="moduleName">模块名</param>
-        /// <param name="functionName">函数名</param>
-        /// <returns>函数指针</returns>
-        private static IntPtr GetProcAddress(string moduleName, string functionName)
-        {
-            IntPtr hModule = GetModuleHandle(moduleName);
-            if (hModule == IntPtr.Zero)
-            {
-                throw new Exception($"Failed to load module: {moduleName}");
-            }
-
-            IntPtr procAddress = GetProcAddress(hModule, functionName);
-            if (procAddress == IntPtr.Zero)
-            {
-                throw new Exception($"Failed to find function: {functionName} in {moduleName}");
-            }
-
-            return procAddress;
-        }
-
-        // MinHook API
-        [DllImport("MinHook.x64.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern MH_STATUS MH_Initialize();
-
-        [DllImport("MinHook.x64.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern MH_STATUS MH_Uninitialize();
-
-        [DllImport("MinHook.x64.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern MH_STATUS MH_CreateHook(IntPtr pTarget, IntPtr pDetour, out IntPtr ppOriginal);
-
-        [DllImport("MinHook.x64.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern MH_STATUS MH_EnableHook(IntPtr pTarget);
-
-        [DllImport("MinHook.x64.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern MH_STATUS MH_DisableHook(IntPtr pTarget);
-
-        [DllImport("MinHook.x64.dll", CallingConvention = CallingConvention.Cdecl)]
-        private static extern MH_STATUS MH_RemoveHook(IntPtr pTarget);
-
-        // Windows API
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
-        private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
-
-        // MinHook状态枚举
-        private enum MH_STATUS
-        {
-            MH_OK = 0,
-            MH_ERROR_ALREADY_INITIALIZED = 1,
-            MH_ERROR_NOT_INITIALIZED = 2,
-            MH_ERROR_ALREADY_CREATED = 3,
-            MH_ERROR_NOT_CREATED = 4,
-            MH_ERROR_ENABLED = 5,
-            MH_ERROR_DISABLED = 6,
-            MH_ERROR_NOT_EXECUTABLE = 7,
-            MH_ERROR_UNSUPPORTED_FUNCTION = 8,
-            MH_ERROR_MEMORY_ALLOC = 9,
-            MH_ERROR_MEMORY_PROTECT = 10,
-            MH_ERROR_MODULE_NOT_FOUND = 11,
-            MH_ERROR_FUNCTION_NOT_FOUND = 12
-        }
-
-        // 特殊值
-        private static readonly IntPtr MH_ALL_HOOKS = new IntPtr(-1);
 
         // Windows版本枚举
         private enum WindowsVersion

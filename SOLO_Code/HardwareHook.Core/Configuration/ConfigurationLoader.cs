@@ -55,8 +55,8 @@ namespace HardwareHook.Core.Configuration
                 // 解析配置文件
                 var config = JsonConvert.DeserializeObject<HardwareConfig>(configContent);
 
-                // 验证并修复配置
-                if (!ValidateAndFixConfiguration(config))
+                // 验证配置
+                if (!ValidateConfiguration(config))
                 {
                     return new ConfigurationLoadResult
                     {
@@ -65,6 +65,9 @@ namespace HardwareHook.Core.Configuration
                         Config = null
                     };
                 }
+
+                // 处理版本兼容性
+                config = HandleVersionCompatibility(config);
 
                 return new ConfigurationLoadResult
                 {
@@ -124,6 +127,74 @@ namespace HardwareHook.Core.Configuration
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// 验证配置
+        /// </summary>
+        /// <param name="config">硬件配置</param>
+        /// <returns>验证结果</returns>
+        private static bool ValidateConfiguration(HardwareConfig config)
+        {
+            if (config == null)
+                return false;
+
+            // 验证版本
+            if (string.IsNullOrEmpty(config.Version))
+                return false;
+
+            // 验证CPU配置
+            if (config.Cpu == null)
+                return false;
+
+            if (config.Cpu.CoreCount <= 0 || config.Cpu.CoreCount > 256)
+                return false;
+
+            if (string.IsNullOrEmpty(config.Cpu.Model))
+                return false;
+
+            if (string.IsNullOrEmpty(config.Cpu.CpuId))
+                return false;
+
+            // 验证硬盘配置
+            if (config.Disk == null)
+                return false;
+
+            if (string.IsNullOrEmpty(config.Disk.Serial))
+                return false;
+
+            // 验证MAC配置
+            if (config.Mac == null)
+                return false;
+
+            // 验证MAC地址格式
+            if (!string.IsNullOrEmpty(config.Mac.Address))
+            {
+                string[] macParts = config.Mac.Address.Split(':');
+                if (macParts.Length != 6)
+                    return false;
+                
+                foreach (string part in macParts)
+                {
+                    if (!byte.TryParse(part, System.Globalization.NumberStyles.HexNumber, null, out _))
+                    {
+                        return false;
+                    }
+                }
+            }
+            else
+            {
+                return false;
+            }
+
+            // 验证主板配置
+            if (config.Motherboard == null)
+                return false;
+
+            if (string.IsNullOrEmpty(config.Motherboard.Serial))
+                return false;
+
+            return true;
         }
 
         /// <summary>
