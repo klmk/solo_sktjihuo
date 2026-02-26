@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Newtonsoft.Json;
+using HardwareHook.Core.Logging;
 
 namespace HardwareHook.Core.Configuration
 {
@@ -54,8 +55,8 @@ namespace HardwareHook.Core.Configuration
                 // 解析配置文件
                 var config = JsonConvert.DeserializeObject<HardwareConfig>(configContent);
 
-                // 验证配置
-                if (!ValidateConfiguration(config))
+                // 验证并修复配置
+                if (!ValidateAndFixConfiguration(config))
                 {
                     return new ConfigurationLoadResult
                     {
@@ -126,39 +127,123 @@ namespace HardwareHook.Core.Configuration
         }
 
         /// <summary>
-        /// 验证配置
+        /// 验证并修复配置
         /// </summary>
         /// <param name="config">硬件配置</param>
         /// <returns>验证结果</returns>
-        private static bool ValidateConfiguration(HardwareConfig config)
+        private static bool ValidateAndFixConfiguration(HardwareConfig config)
         {
             if (config == null)
                 return false;
 
             // 验证版本
             if (string.IsNullOrEmpty(config.Version))
-                return false;
+                config.Version = "1.0";
+
+            // 处理版本兼容性
+            config = HandleVersionCompatibility(config);
 
             // 验证CPU配置
             if (config.Cpu == null)
-                return false;
+                config.Cpu = new CpuConfig();
 
-            if (config.Cpu.CoreCount <= 0)
-                return false;
+            if (config.Cpu.CoreCount <= 0 || config.Cpu.CoreCount > 256)
+                config.Cpu.CoreCount = 16; // 默认值
+
+            if (string.IsNullOrEmpty(config.Cpu.Model))
+                config.Cpu.Model = "Intel(R) Core(TM) i9-12900K";
+
+            if (string.IsNullOrEmpty(config.Cpu.CpuId))
+                config.Cpu.CpuId = "BFEBFBFF000A06E9";
 
             // 验证硬盘配置
             if (config.Disk == null)
-                return false;
+                config.Disk = new DiskConfig();
+
+            if (string.IsNullOrEmpty(config.Disk.Serial))
+                config.Disk.Serial = "1234567890ABCDEF";
 
             // 验证MAC配置
             if (config.Mac == null)
-                return false;
+                config.Mac = new MacConfig();
+
+            // 验证MAC地址格式
+            if (!string.IsNullOrEmpty(config.Mac.Address))
+            {
+                string[] macParts = config.Mac.Address.Split(':');
+                if (macParts.Length != 6)
+                    config.Mac.Address = "00:11:22:33:44:55";
+                else
+                {
+                    bool validMac = true;
+                    foreach (string part in macParts)
+                    {
+                        if (!byte.TryParse(part, System.Globalization.NumberStyles.HexNumber, null, out _))
+                        {
+                            validMac = false;
+                            break;
+                        }
+                    }
+                    if (!validMac)
+                        config.Mac.Address = "00:11:22:33:44:55";
+                }
+            }
+            else
+            {
+                config.Mac.Address = "00:11:22:33:44:55";
+            }
 
             // 验证主板配置
             if (config.Motherboard == null)
-                return false;
+                config.Motherboard = new MotherboardConfig();
+
+            if (string.IsNullOrEmpty(config.Motherboard.Serial))
+                config.Motherboard.Serial = "MB-2025-12345678";
 
             return true;
+        }
+
+        /// <summary>
+        /// 处理版本兼容性
+        /// </summary>
+        /// <param name="config">硬件配置</param>
+        /// <returns>处理后的配置</returns>
+        private static HardwareConfig HandleVersionCompatibility(HardwareConfig config)
+        {
+            try
+            {
+                // 解析版本号
+                Version configVersion = new Version(config.Version);
+                Version currentVersion = new Version("1.0");
+
+                // 处理版本差异
+                if (configVersion < currentVersion)
+                {
+                    // 旧版本配置的处理逻辑
+                    // 例如：添加新字段的默认值
+                    _logger?.Info($"Upgraded configuration from version {config.Version} to {currentVersion}");
+                    config.Version = currentVersion.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error("Failed to handle version compatibility", ex);
+                config.Version = "1.0"; // 重置为默认版本
+            }
+
+            return config;
+        }
+
+        // 日志记录器（静态）
+        private static ILogger _logger;
+
+        /// <summary>
+        /// 设置日志记录器
+        /// </summary>
+        /// <param name="logger">日志记录器</param>
+        public static void SetLogger(ILogger logger)
+        {
+            _logger = logger;
         }
 
         /// <summary>

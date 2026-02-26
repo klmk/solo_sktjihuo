@@ -10,7 +10,7 @@ namespace HardwareHook.Core.Configuration
     /// </summary>
     public class EncryptionHelper
     {
-        private const string DefaultKey = "HardwareHook2026!@#$";
+        private const string DefaultKey = "HardwareHook2026!@#$1234";
         private const string DefaultIV = "HookTool2026!@#$";
 
         /// <summary>

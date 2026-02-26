@@ -63,6 +63,12 @@ namespace HardwareHook.Tests
             // 执行
             var logger = new FileLogger(_testLogDirectory);
             logger.Debug("Test debug message");
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);
@@ -79,6 +85,12 @@ namespace HardwareHook.Tests
             // 执行
             var logger = new FileLogger(_testLogDirectory);
             logger.Info("Test info message");
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);
@@ -95,6 +107,12 @@ namespace HardwareHook.Tests
             // 执行
             var logger = new FileLogger(_testLogDirectory);
             logger.Warn("Test warn message");
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);
@@ -111,6 +129,12 @@ namespace HardwareHook.Tests
             // 执行
             var logger = new FileLogger(_testLogDirectory);
             logger.Error("Test error message");
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);
@@ -128,6 +152,12 @@ namespace HardwareHook.Tests
             var logger = new FileLogger(_testLogDirectory);
             var ex = new System.Exception("Test exception message");
             logger.Error("Test error with exception", ex);
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);
@@ -145,6 +175,12 @@ namespace HardwareHook.Tests
             // 执行
             var logger = new FileLogger(_testLogDirectory);
             logger.Fatal("Test fatal message");
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);
@@ -162,6 +198,12 @@ namespace HardwareHook.Tests
             var logger = new FileLogger(_testLogDirectory);
             var ex = new System.Exception("Test exception message");
             logger.Fatal("Test fatal with exception", ex);
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);
@@ -183,6 +225,12 @@ namespace HardwareHook.Tests
             logger.Warn("Warn message");
             logger.Error("Error message");
             logger.Fatal("Fatal message");
+            logger.Flush(); // 强制刷新缓冲区
+
+            // 查找实际创建的日志文件
+            var logFiles = Directory.GetFiles(_testLogDirectory, "hardwarehook_*.log");
+            Assert.That(logFiles.Length, Is.GreaterThan(0));
+            _logFilePath = logFiles[0];
 
             // 验证
             Assert.That(File.Exists(_logFilePath), Is.True);

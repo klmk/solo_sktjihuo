@@ -12,6 +12,13 @@ namespace HardwareHook.Core.Logging
         void Debug(string message);
 
         /// <summary>
+        /// 记录调试信息
+        /// </summary>
+        /// <param name="message">日志消息</param>
+        /// <param name="ex">异常</param>
+        void Debug(string message, System.Exception ex);
+
+        /// <summary>
         /// 记录信息
         /// </summary>
         /// <param name="message">日志消息</param>

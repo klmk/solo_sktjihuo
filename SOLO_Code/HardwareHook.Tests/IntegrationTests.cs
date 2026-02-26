@@ -63,6 +63,9 @@ namespace HardwareHook.Tests
             // 卸载所有钩子
             HookManager.UninstallAll();
 
+            // 释放日志记录器资源
+            _testLogger?.Dispose();
+
             // 清理测试目录
             if (System.IO.Directory.Exists(_testLogDirectory))
                 System.IO.Directory.Delete(_testLogDirectory, true);
