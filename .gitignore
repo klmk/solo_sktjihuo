@@ -1,0 +1,32 @@
+# Visual Studio generated files
+.vs/
+*.suo
+*.user
+*.sln.docstates
+
+# Build output
+bin/
+obj/
+
+# NuGet packages
+packages/
+*.nupkg
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# Test results
+TestResults/
+
+# Debug files
+*.pdb
+*.vshost.exe
+*.vshost.exe.manifest
