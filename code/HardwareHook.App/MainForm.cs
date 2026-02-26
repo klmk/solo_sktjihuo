@@ -52,7 +52,8 @@ namespace HardwareHook.App
 
         public MainForm()
         {
-            Text = "Windows 硬件信息模拟 Hook 工具";
+            var bitness = IntPtr.Size == 8 ? "64位" : "32位";
+            Text = "Windows 硬件信息模拟 Hook 工具 [" + bitness + "]";
             Width = 1000;
             Height = 700;
 
@@ -518,7 +519,8 @@ namespace HardwareHook.App
                 {
                     _currentConfigPath = dialog.FileName;
                     _logger?.Info($"已选择配置文件：{_currentConfigPath}", "UI");
-                    Text = "Windows 硬件信息模拟 Hook 工具 - " + Path.GetFileName(_currentConfigPath);
+                    var bitness = IntPtr.Size == 8 ? "64位" : "32位";
+                    Text = "Windows 硬件信息模拟 Hook 工具 [" + bitness + "] - " + Path.GetFileName(_currentConfigPath);
                     var result = ConfigurationLoader.Load(_currentConfigPath, _logger);
                     if (!result.Success)
                     {

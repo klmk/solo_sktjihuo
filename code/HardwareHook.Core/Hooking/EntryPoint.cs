@@ -17,25 +17,54 @@ namespace HardwareHook.Core.Hooking
 
         public EntryPoint(RemoteHooking.IContext context, string configPath, string uninstallEventName)
         {
+            _uninstallEventName = uninstallEventName ?? string.Empty;
             var baseLogDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
                 "HardwareHook",
                 "Logs");
 
-            _logger = new FileLogger(baseLogDir);
-
-            var loadResult = ConfigurationLoader.Load(configPath, _logger);
-            _config = loadResult.Config ?? new HardwareConfig();
-
-            if (!loadResult.Success)
+            try
             {
-                _logger.Error(
-                    $"配置文件加载或验证失败，将使用默认配置继续运行。错误：{loadResult.ErrorMessage}",
-                    module: "EntryPoint");
+                Directory.CreateDirectory(baseLogDir);
+                _logger = new FileLogger(baseLogDir);
+            }
+            catch (Exception ex)
+            {
+                TryWriteFallbackLog(baseLogDir, "FileLogger 创建失败: " + ex);
+                _logger = new NullLogger();
             }
 
-            _hookManager = new HookManager(_config, _logger);
-            _uninstallEventName = uninstallEventName;
+            try
+            {
+                _config = LoadConfigSafe(configPath);
+                _hookManager = new HookManager(_config, _logger);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("EntryPoint 初始化异常，使用默认配置。", ex, "EntryPoint");
+                TryWriteFallbackLog(baseLogDir, "EntryPoint 初始化: " + ex);
+                _config = new HardwareConfig();
+                _hookManager = new HookManager(_config, _logger);
+            }
+        }
+
+        private static HardwareConfig LoadConfigSafe(string configPath)
+        {
+            if (string.IsNullOrWhiteSpace(configPath))
+                return new HardwareConfig();
+            var result = ConfigurationLoader.Load(configPath, null);
+            return result.Config ?? new HardwareConfig();
+        }
+
+        private static void TryWriteFallbackLog(string logDir, string content)
+        {
+            try
+            {
+                Directory.CreateDirectory(logDir);
+                var path = Path.Combine(logDir, "entrypoint_fail.txt");
+                File.AppendAllText(path, DateTime.UtcNow.ToString("o") + " " + content + Environment.NewLine);
+            }
+            catch { }
         }
 
         public void Run(RemoteHooking.IContext context, string configPath, string uninstallEventName)

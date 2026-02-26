@@ -6,6 +6,8 @@
     <AssemblyName>HardwareHook.App</AssemblyName>
     <RootNamespace>HardwareHook.App</RootNamespace>
     <LangVersion>8.0</LangVersion>
+    <!-- 必须 x64：EasyHook 向 64 位进程注入时，主程序也须为 64 位，否则会报 Code 15 -->
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\HardwareHook.Core\HardwareHook.Core.csproj" />

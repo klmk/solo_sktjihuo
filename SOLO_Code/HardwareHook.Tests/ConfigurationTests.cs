@@ -1,6 +1,7 @@
 using System.IO;
 using HardwareHook.Core.Configuration;
 using NUnit.Framework;
+using NUnit.Framework.Legacy;
 
 namespace HardwareHook.Tests
 {
@@ -47,10 +48,10 @@ namespace HardwareHook.Tests
             var result = ConfigurationLoader.LoadConfiguration(_nonExistentConfigPath);
 
             // 验证
-            Assert.IsFalse(result.Success);
-            Assert.IsNotNull(result.ErrorMessage);
-            Assert.IsNull(result.Config);
-            Assert.AreEqual("配置文件不存在", result.ErrorMessage);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Is.Not.Null);
+            Assert.That(result.Config, Is.Null);
+            Assert.That(result.ErrorMessage, Is.EqualTo("配置文件不存在"));
         }
 
         /// <summary>
@@ -90,16 +91,16 @@ namespace HardwareHook.Tests
             var result = ConfigurationLoader.LoadConfiguration(_testConfigPath);
 
             // 验证
-            Assert.IsTrue(result.Success);
-            Assert.IsNull(result.ErrorMessage);
-            Assert.IsNotNull(result.Config);
-            Assert.AreEqual(validConfig.Version, result.Config.Version);
-            Assert.AreEqual(validConfig.Cpu.Model, result.Config.Cpu.Model);
-            Assert.AreEqual(validConfig.Cpu.CoreCount, result.Config.Cpu.CoreCount);
-            Assert.AreEqual(validConfig.Cpu.CpuId, result.Config.Cpu.CpuId);
-            Assert.AreEqual(validConfig.Disk.Serial, result.Config.Disk.Serial);
-            Assert.AreEqual(validConfig.Mac.Address, result.Config.Mac.Address);
-            Assert.AreEqual(validConfig.Motherboard.Serial, result.Config.Motherboard.Serial);
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.ErrorMessage, Is.Null);
+            Assert.That(result.Config, Is.Not.Null);
+            Assert.That(result.Config.Version, Is.EqualTo(validConfig.Version));
+            Assert.That(result.Config.Cpu.Model, Is.EqualTo(validConfig.Cpu.Model));
+            Assert.That(result.Config.Cpu.CoreCount, Is.EqualTo(validConfig.Cpu.CoreCount));
+            Assert.That(result.Config.Cpu.CpuId, Is.EqualTo(validConfig.Cpu.CpuId));
+            Assert.That(result.Config.Disk.Serial, Is.EqualTo(validConfig.Disk.Serial));
+            Assert.That(result.Config.Mac.Address, Is.EqualTo(validConfig.Mac.Address));
+            Assert.That(result.Config.Motherboard.Serial, Is.EqualTo(validConfig.Motherboard.Serial));
         }
 
         /// <summary>
@@ -115,10 +116,10 @@ namespace HardwareHook.Tests
             var result = ConfigurationLoader.LoadConfiguration(_testConfigPath);
 
             // 验证
-            Assert.IsFalse(result.Success);
-            Assert.IsNotNull(result.ErrorMessage);
-            Assert.IsNull(result.Config);
-            Assert.IsTrue(result.ErrorMessage.Contains("配置加载失败"));
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Is.Not.Null);
+            Assert.That(result.Config, Is.Null);
+            Assert.That(result.ErrorMessage, Does.Contain("配置加载失败"));
         }
 
         /// <summary>
@@ -136,10 +137,10 @@ namespace HardwareHook.Tests
             var result = ConfigurationLoader.LoadConfiguration(_testConfigPath);
 
             // 验证
-            Assert.IsFalse(result.Success);
-            Assert.IsNotNull(result.ErrorMessage);
-            Assert.IsNull(result.Config);
-            Assert.AreEqual("配置文件验证失败", result.ErrorMessage);
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorMessage, Is.Not.Null);
+            Assert.That(result.Config, Is.Null);
+            Assert.That(result.ErrorMessage, Is.EqualTo("配置文件验证失败"));
         }
 
         /// <summary>
@@ -176,14 +177,14 @@ namespace HardwareHook.Tests
             var result = ConfigurationLoader.SaveConfiguration(validConfig, _testConfigPath);
 
             // 验证
-            Assert.IsTrue(result);
-            Assert.IsTrue(File.Exists(_testConfigPath));
+            Assert.That(result, Is.True);
+            Assert.That(File.Exists(_testConfigPath), Is.True);
 
             // 验证保存的配置可以正确加载
             var loadResult = ConfigurationLoader.LoadConfiguration(_testConfigPath);
-            Assert.IsTrue(loadResult.Success);
-            Assert.IsNotNull(loadResult.Config);
-            Assert.AreEqual(validConfig.Version, loadResult.Config.Version);
+            Assert.That(loadResult.Success, Is.True);
+            Assert.That(loadResult.Config, Is.Not.Null);
+            Assert.That(loadResult.Config.Version, Is.EqualTo(validConfig.Version));
         }
     }
 }

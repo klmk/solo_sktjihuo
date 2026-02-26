@@ -1,0 +1,17 @@
+{
+  "Version": "1.0",
+  "Cpu": {
+    "Model": "Intel(R) Core(TM) i9-12900K",
+    "CoreCount": 16,
+    "CpuId": "BFEBFBFF000A06E9"
+  },
+  "Disk": {
+    "Serial": "1234567890ABCDEF"
+  },
+  "Mac": {
+    "Address": "00:11:22:33:44:55"
+  },
+  "Motherboard": {
+    "Serial": "MB-2025-12345678"
+  }
+}

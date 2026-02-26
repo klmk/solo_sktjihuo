@@ -49,7 +49,7 @@ namespace HardwareHook.Core.Hooking
             }
             catch (Exception ex)
             {
-                _logger.Error("Failed to install hooks", ex);
+                _logger?.Error("Failed to install hooks", ex);
                 UninstallAll();
                 throw;
             }
@@ -98,11 +98,11 @@ namespace HardwareHook.Core.Hooking
                 _getSystemInfoHook.ThreadACL.SetInclusiveACL(new int[] { 0 });
                 _getNativeSystemInfoHook.ThreadACL.SetInclusiveACL(new int[] { 0 });
 
-                _logger.Info("CPU hooks installed");
+                _logger?.Info("CPU hooks installed");
             }
             catch (Exception ex)
             {
-                _logger.Error("Failed to install CPU hooks", ex);
+                _logger?.Error("Failed to install CPU hooks", ex);
                 throw;
             }
         }
@@ -127,11 +127,11 @@ namespace HardwareHook.Core.Hooking
                 _getVolumeInformationWHook.ThreadACL.SetInclusiveACL(new int[] { 0 });
                 _deviceIoControlHook.ThreadACL.SetInclusiveACL(new int[] { 0 });
 
-                _logger.Info("Disk hooks installed");
+                _logger?.Info("Disk hooks installed");
             }
             catch (Exception ex)
             {
-                _logger.Error("Failed to install disk hooks", ex);
+                _logger?.Error("Failed to install disk hooks", ex);
                 throw;
             }
         }
@@ -150,12 +150,12 @@ namespace HardwareHook.Core.Hooking
 
                 _getAdaptersInfoHook.ThreadACL.SetInclusiveACL(new int[] { 0 });
 
-                _logger.Info("MAC hooks installed");
+                _logger?.Info("MAC hooks installed");
             }
             catch (Exception ex)
             {
-                _logger.Error("Failed to install MAC hooks", ex);
-                throw;
+                _logger?.Error("Failed to install MAC hooks", ex);
+                // 不抛出异常，允许其他钩子继续安装
             }
         }
 
@@ -179,12 +179,12 @@ namespace HardwareHook.Core.Hooking
                 _regOpenKeyExHook.ThreadACL.SetInclusiveACL(new int[] { 0 });
                 _regQueryValueExHook.ThreadACL.SetInclusiveACL(new int[] { 0 });
 
-                _logger.Info("Motherboard hooks installed");
+                _logger?.Info("Motherboard hooks installed");
             }
             catch (Exception ex)
             {
-                _logger.Error("Failed to install motherboard hooks", ex);
-                throw;
+                _logger?.Error("Failed to install motherboard hooks", ex);
+                // 不抛出异常，允许其他钩子继续安装
             }
         }
 
@@ -432,7 +432,23 @@ namespace HardwareHook.Core.Hooking
                     lpFileSystemNameBuffer,
                     nFileSystemNameSize);
 
-                // 这里可以添加硬盘序列号模拟逻辑
+                // 模拟硬盘序列号
+                if (_config != null && _config.Disk != null && !string.IsNullOrEmpty(_config.Disk.Serial))
+                {
+                    // 尝试将配置的序列号转换为uint
+                    try
+                    {
+                        if (_config.Disk.Serial.Length >= 8)
+                        {
+                            string serialHex = _config.Disk.Serial.Substring(0, 8);
+                            if (uint.TryParse(serialHex, System.Globalization.NumberStyles.HexNumber, null, out uint serial))
+                            {
+                                lpVolumeSerialNumber = serial;
+                            }
+                        }
+                    }
+                    catch { }
+                }
 
                 return result;
             }
@@ -504,7 +520,38 @@ namespace HardwareHook.Core.Hooking
                 // 先调用原始API
                 int result = GetAdaptersInfo(pAdapterInfo, ref pOutBufLen);
 
-                // 这里可以添加MAC地址模拟逻辑
+                // 模拟MAC地址
+                if (result == 0 && pAdapterInfo != IntPtr.Zero && _config != null && _config.Mac != null && !string.IsNullOrEmpty(_config.Mac.Address))
+                {
+                    try
+                    {
+                        // 解析MAC地址
+                        string[] macParts = _config.Mac.Address.Split(':');
+                        if (macParts.Length == 6)
+                        {
+                            byte[] macBytes = new byte[6];
+                            for (int i = 0; i < 6; i++)
+                            {
+                                macBytes[i] = byte.Parse(macParts[i], System.Globalization.NumberStyles.HexNumber);
+                            }
+
+                            // 遍历适配器列表，修改第一个物理适配器的MAC地址
+                            IntPtr currentAdapter = pAdapterInfo;
+                            while (currentAdapter != IntPtr.Zero)
+                            {
+                                IP_ADAPTER_INFO adapter = Marshal.PtrToStructure<IP_ADAPTER_INFO>(currentAdapter);
+                                if (adapter.AddressLength == 6)
+                                {
+                                    // 复制模拟的MAC地址
+                                    Marshal.Copy(macBytes, 0, new IntPtr(currentAdapter.ToInt64() + Marshal.OffsetOf<IP_ADAPTER_INFO>("Address").ToInt64()), 6);
+                                    break;
+                                }
+                                currentAdapter = adapter.Next;
+                            }
+                        }
+                    }
+                    catch { }
+                }
 
                 return result;
             }
@@ -570,7 +617,33 @@ namespace HardwareHook.Core.Hooking
                 if (_config != null && _config.Motherboard != null && !string.IsNullOrEmpty(_config.Motherboard.Serial))
                 {
                     // 检查是否是读取主板序列号的注册表项
-                    // 这里需要根据实际的注册表路径进行调整
+                    // 常见的主板序列号注册表项
+                    if (lpValueName == "SerialNumber" || lpValueName == "BIOSSerialNumber")
+                    {
+                        try
+                        {
+                            // 模拟主板序列号
+                            byte[] serialBytes = System.Text.Encoding.Unicode.GetBytes(_config.Motherboard.Serial + '\0');
+                            uint requiredSize = (uint)serialBytes.Length;
+
+                            if (lpData == IntPtr.Zero)
+                            {
+                                // 第一次调用，返回所需大小
+                                lpcbData = requiredSize;
+                                lpType = 1; // REG_SZ
+                                return 0;
+                            }
+                            else if (lpcbData >= requiredSize)
+                            {
+                                // 第二次调用，复制数据
+                                Marshal.Copy(serialBytes, 0, lpData, serialBytes.Length);
+                                lpcbData = requiredSize;
+                                lpType = 1; // REG_SZ
+                                return 0;
+                            }
+                        }
+                        catch { }
+                    }
                 }
 
                 return result;

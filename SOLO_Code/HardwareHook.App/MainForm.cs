@@ -17,6 +17,7 @@ namespace HardwareHook.App
         private ILogger _logger;
         private string _configPath;
         private string _coreDllPath;
+        private string _configDirectory;
         private System.Threading.Timer _processRefreshTimer;
 
         /// <summary>
@@ -37,7 +38,11 @@ namespace HardwareHook.App
             _logger = new FileLogger();
             _logger.Info("Application started");
 
-            // 设置配置文件路径
+            // 设置配置文件目录
+            _configDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "configs");
+            Directory.CreateDirectory(_configDirectory);
+
+            // 设置默认配置文件路径
             _configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
 
             // 设置核心DLL路径
@@ -45,6 +50,9 @@ namespace HardwareHook.App
 
             // 加载进程列表
             LoadProcesses();
+
+            // 加载配置文件列表
+            LoadConfigFiles();
 
             // 初始化定时器，定期刷新进程列表
             _processRefreshTimer = new System.Threading.Timer(
@@ -298,20 +306,27 @@ namespace HardwareHook.App
         {
             this.components = new System.ComponentModel.Container();
             this.tabControl1 = new System.Windows.Forms.TabControl();
-            this.tabPage1 = new System.Windows.Forms.TabPage();
-            this.lstProcesses = new System.Windows.Forms.ListBox();
-            this.btnInject = new System.Windows.Forms.Button();
-            this.label1 = new System.Windows.Forms.Label();
-            this.btnRefresh = new System.Windows.Forms.Button();
-            this.tabPage2 = new System.Windows.Forms.TabPage();
-            this.txtHardwareInfo = new System.Windows.Forms.TextBox();
-            this.btnReadHardware = new System.Windows.Forms.Button();
-            this.btnExportConfig = new System.Windows.Forms.Button();
-            this.label2 = new System.Windows.Forms.Label();
-            this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.txtLog = new System.Windows.Forms.TextBox();
-            this.btnReadLog = new System.Windows.Forms.Button();
-            this.label3 = new System.Windows.Forms.Label();
+                this.tabPage1 = new System.Windows.Forms.TabPage();
+                this.lstProcesses = new System.Windows.Forms.ListBox();
+                this.btnInject = new System.Windows.Forms.Button();
+                this.label1 = new System.Windows.Forms.Label();
+                this.btnRefresh = new System.Windows.Forms.Button();
+                this.tabPage2 = new System.Windows.Forms.TabPage();
+                this.txtHardwareInfo = new System.Windows.Forms.TextBox();
+                this.btnReadHardware = new System.Windows.Forms.Button();
+                this.btnExportConfig = new System.Windows.Forms.Button();
+                this.label2 = new System.Windows.Forms.Label();
+                this.tabPage3 = new System.Windows.Forms.TabPage();
+                this.txtLog = new System.Windows.Forms.TextBox();
+                this.btnReadLog = new System.Windows.Forms.Button();
+                this.label3 = new System.Windows.Forms.Label();
+                this.tabPage4 = new System.Windows.Forms.TabPage();
+                this.lstConfigFiles = new System.Windows.Forms.ListBox();
+                this.btnLoadConfig = new System.Windows.Forms.Button();
+                this.btnCreateConfig = new System.Windows.Forms.Button();
+                this.btnDeleteConfig = new System.Windows.Forms.Button();
+                this.label4 = new System.Windows.Forms.Label();
+                this.btnRefreshConfig = new System.Windows.Forms.Button();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
             this.tabControl1.SuspendLayout();
@@ -326,6 +341,7 @@ namespace HardwareHook.App
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage3);
+            this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Location = new System.Drawing.Point(12, 12);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -478,6 +494,80 @@ namespace HardwareHook.App
             this.label3.TabIndex = 2;
             this.label3.Text = "日志";
             // 
+            // tabPage4
+            // 
+            this.tabPage4.Controls.Add(this.btnRefreshConfig);
+            this.tabPage4.Controls.Add(this.btnDeleteConfig);
+            this.tabPage4.Controls.Add(this.btnCreateConfig);
+            this.tabPage4.Controls.Add(this.btnLoadConfig);
+            this.tabPage4.Controls.Add(this.lstConfigFiles);
+            this.tabPage4.Controls.Add(this.label4);
+            this.tabPage4.Location = new System.Drawing.Point(4, 22);
+            this.tabPage4.Name = "tabPage4";
+            this.tabPage4.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage4.Size = new System.Drawing.Size(768, 410);
+            this.tabPage4.TabIndex = 3;
+            this.tabPage4.Text = "配置管理";
+            this.tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // lstConfigFiles
+            // 
+            this.lstConfigFiles.FormattingEnabled = true;
+            this.lstConfigFiles.ItemHeight = 12;
+            this.lstConfigFiles.Location = new System.Drawing.Point(6, 25);
+            this.lstConfigFiles.Name = "lstConfigFiles";
+            this.lstConfigFiles.Size = new System.Drawing.Size(756, 340);
+            this.lstConfigFiles.TabIndex = 0;
+            // 
+            // btnLoadConfig
+            // 
+            this.btnLoadConfig.Location = new System.Drawing.Point(6, 371);
+            this.btnLoadConfig.Name = "btnLoadConfig";
+            this.btnLoadConfig.Size = new System.Drawing.Size(75, 23);
+            this.btnLoadConfig.TabIndex = 1;
+            this.btnLoadConfig.Text = "加载配置";
+            this.btnLoadConfig.UseVisualStyleBackColor = true;
+            this.btnLoadConfig.Click += new System.EventHandler(this.btnLoadConfig_Click);
+            // 
+            // btnCreateConfig
+            // 
+            this.btnCreateConfig.Location = new System.Drawing.Point(87, 371);
+            this.btnCreateConfig.Name = "btnCreateConfig";
+            this.btnCreateConfig.Size = new System.Drawing.Size(75, 23);
+            this.btnCreateConfig.TabIndex = 2;
+            this.btnCreateConfig.Text = "创建配置";
+            this.btnCreateConfig.UseVisualStyleBackColor = true;
+            this.btnCreateConfig.Click += new System.EventHandler(this.btnCreateConfig_Click);
+            // 
+            // btnDeleteConfig
+            // 
+            this.btnDeleteConfig.Location = new System.Drawing.Point(168, 371);
+            this.btnDeleteConfig.Name = "btnDeleteConfig";
+            this.btnDeleteConfig.Size = new System.Drawing.Size(75, 23);
+            this.btnDeleteConfig.TabIndex = 3;
+            this.btnDeleteConfig.Text = "删除配置";
+            this.btnDeleteConfig.UseVisualStyleBackColor = true;
+            this.btnDeleteConfig.Click += new System.EventHandler(this.btnDeleteConfig_Click);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(6, 9);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(53, 12);
+            this.label4.TabIndex = 4;
+            this.label4.Text = "配置文件";
+            // 
+            // btnRefreshConfig
+            // 
+            this.btnRefreshConfig.Location = new System.Drawing.Point(249, 371);
+            this.btnRefreshConfig.Name = "btnRefreshConfig";
+            this.btnRefreshConfig.Size = new System.Drawing.Size(75, 23);
+            this.btnRefreshConfig.TabIndex = 5;
+            this.btnRefreshConfig.Text = "刷新";
+            this.btnRefreshConfig.UseVisualStyleBackColor = true;
+            this.btnRefreshConfig.Click += new System.EventHandler(this.btnRefreshConfig_Click);
+            // 
             // statusStrip1
             // 
             this.statusStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
@@ -534,6 +624,13 @@ namespace HardwareHook.App
         private System.Windows.Forms.TextBox txtLog;
         private System.Windows.Forms.Button btnReadLog;
         private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.TabPage tabPage4;
+        private System.Windows.Forms.ListBox lstConfigFiles;
+        private System.Windows.Forms.Button btnLoadConfig;
+        private System.Windows.Forms.Button btnCreateConfig;
+        private System.Windows.Forms.Button btnDeleteConfig;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Button btnRefreshConfig;
         private System.Windows.Forms.StatusStrip statusStrip1;
         private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel1;
 
@@ -585,6 +682,173 @@ namespace HardwareHook.App
         private void btnReadLog_Click(object sender, EventArgs e)
         {
             ReadLogs();
+        }
+
+        /// <summary>
+        /// 加载配置文件列表
+        /// </summary>
+        private void LoadConfigFiles()
+        {
+            try
+            {
+                var configFiles = ConfigurationLoader.ListConfigurationFiles(_configDirectory);
+                lstConfigFiles.Items.Clear();
+
+                foreach (var configFile in configFiles)
+                {
+                    lstConfigFiles.Items.Add(configFile);
+                }
+
+                _logger.Info($"Loaded {configFiles.Length} configuration files");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to load configuration files", ex);
+                MessageBox.Show("加载配置文件列表失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 加载配置按钮点击事件
+        /// </summary>
+        /// <param name="sender">发送者</param>
+        /// <param name="e">事件参数</param>
+        private void btnLoadConfig_Click(object sender, EventArgs e)
+        {
+            if (lstConfigFiles.SelectedItem == null)
+            {
+                MessageBox.Show("请选择一个配置文件", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                string selectedConfigFile = (string)lstConfigFiles.SelectedItem;
+                var result = ConfigurationLoader.LoadConfiguration(selectedConfigFile);
+
+                if (result.Success)
+                {
+                    // 复制选中的配置文件到默认配置路径
+                    File.Copy(selectedConfigFile, _configPath, true);
+                    _logger.Info($"Configuration loaded from {selectedConfigFile}");
+                    MessageBox.Show("配置加载成功", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    _logger.Error("Failed to load configuration: " + result.ErrorMessage);
+                    MessageBox.Show("配置加载失败: " + result.ErrorMessage, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to load configuration", ex);
+                MessageBox.Show("配置加载失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 创建配置按钮点击事件
+        /// </summary>
+        /// <param name="sender">发送者</param>
+        /// <param name="e">事件参数</param>
+        private void btnCreateConfig_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // 读取当前硬件信息
+                var snapshot = HardwareInfoReader.ReadHardwareInfo();
+                if (!snapshot.IsSuccess)
+                {
+                    MessageBox.Show("读取硬件信息失败，无法创建配置", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // 创建新的配置文件
+                string configFileName = $"config_{DateTime.Now:yyyyMMddHHmmss}.json";
+                string configFilePath = Path.Combine(_configDirectory, configFileName);
+
+                var config = new HardwareConfig
+                {
+                    Cpu = new CpuConfig
+                    {
+                        Model = snapshot.CpuModel,
+                        CoreCount = snapshot.CpuCoreCount,
+                        CpuId = snapshot.CpuId
+                    },
+                    Disk = new DiskConfig
+                    {
+                        Serial = snapshot.DiskSerial
+                    },
+                    Mac = new MacConfig
+                    {
+                        Address = snapshot.MacAddress
+                    },
+                    Motherboard = new MotherboardConfig
+                    {
+                        Serial = snapshot.MotherboardSerial
+                    }
+                };
+
+                if (ConfigurationLoader.SaveConfiguration(config, configFilePath))
+                {
+                    _logger.Info($"Configuration created at {configFilePath}");
+                    MessageBox.Show("配置创建成功", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // 刷新配置文件列表
+                    LoadConfigFiles();
+                }
+                else
+                {
+                    _logger.Error("Failed to create configuration");
+                    MessageBox.Show("配置创建失败", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to create configuration", ex);
+                MessageBox.Show("配置创建失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 删除配置按钮点击事件
+        /// </summary>
+        /// <param name="sender">发送者</param>
+        /// <param name="e">事件参数</param>
+        private void btnDeleteConfig_Click(object sender, EventArgs e)
+        {
+            if (lstConfigFiles.SelectedItem == null)
+            {
+                MessageBox.Show("请选择一个配置文件", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                string selectedConfigFile = (string)lstConfigFiles.SelectedItem;
+                if (MessageBox.Show($"确定要删除配置文件 {Path.GetFileName(selectedConfigFile)} 吗？", "确认", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    File.Delete(selectedConfigFile);
+                    _logger.Info($"Configuration deleted: {selectedConfigFile}");
+                    MessageBox.Show("配置删除成功", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // 刷新配置文件列表
+                    LoadConfigFiles();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to delete configuration", ex);
+                MessageBox.Show("配置删除失败: " + ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 刷新配置列表按钮点击事件
+        /// </summary>
+        /// <param name="sender">发送者</param>
+        /// <param name="e">事件参数</param>
+        private void btnRefreshConfig_Click(object sender, EventArgs e)
+        {
+            LoadConfigFiles();
         }
 
         /// <summary>

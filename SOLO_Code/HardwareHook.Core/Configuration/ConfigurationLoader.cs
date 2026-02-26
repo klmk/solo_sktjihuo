@@ -13,8 +13,9 @@ namespace HardwareHook.Core.Configuration
         /// 加载配置文件
         /// </summary>
         /// <param name="configPath">配置文件路径</param>
+        /// <param name="isEncrypted">是否为加密配置文件</param>
         /// <returns>配置加载结果</returns>
-        public static ConfigurationLoadResult LoadConfiguration(string configPath)
+        public static ConfigurationLoadResult LoadConfiguration(string configPath, bool isEncrypted = false)
         {
             try
             {
@@ -31,6 +32,24 @@ namespace HardwareHook.Core.Configuration
 
                 // 读取配置文件内容
                 string configContent = File.ReadAllText(configPath);
+
+                // 如果是加密配置文件，进行解密
+                if (isEncrypted)
+                {
+                    try
+                    {
+                        configContent = EncryptionHelper.Decrypt(configContent);
+                    }
+                    catch
+                    {
+                        return new ConfigurationLoadResult
+                        {
+                            Success = false,
+                            ErrorMessage = "配置文件解密失败",
+                            Config = null
+                        };
+                    }
+                }
 
                 // 解析配置文件
                 var config = JsonConvert.DeserializeObject<HardwareConfig>(configContent);
@@ -61,6 +80,48 @@ namespace HardwareHook.Core.Configuration
                     ErrorMessage = "配置加载失败: " + ex.Message,
                     Config = null
                 };
+            }
+        }
+
+        /// <summary>
+        /// 保存配置文件
+        /// </summary>
+        /// <param name="config">硬件配置</param>
+        /// <param name="configPath">配置文件路径</param>
+        /// <param name="isEncrypted">是否加密保存</param>
+        /// <returns>保存结果</returns>
+        public static bool SaveConfiguration(HardwareConfig config, string configPath, bool isEncrypted = false)
+        {
+            try
+            {
+                // 检查配置是否为null
+                if (config == null)
+                    return false;
+
+                // 检查配置路径是否为null
+                if (string.IsNullOrEmpty(configPath))
+                    return false;
+
+                // 序列化配置
+                string configContent = JsonConvert.SerializeObject(config, Formatting.Indented);
+
+                // 如果需要加密，进行加密
+                if (isEncrypted)
+                {
+                    configContent = EncryptionHelper.Encrypt(configContent);
+                }
+
+                // 确保目录存在
+                Directory.CreateDirectory(Path.GetDirectoryName(configPath));
+
+                // 保存配置文件
+                File.WriteAllText(configPath, configContent);
+
+                return true;
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -110,6 +171,14 @@ namespace HardwareHook.Core.Configuration
         {
             try
             {
+                // 检查配置是否为null
+                if (config == null)
+                    return false;
+
+                // 检查配置路径是否为null
+                if (string.IsNullOrEmpty(configPath))
+                    return false;
+
                 // 序列化配置
                 string configContent = JsonConvert.SerializeObject(config, Formatting.Indented);
 
@@ -120,6 +189,46 @@ namespace HardwareHook.Core.Configuration
                 File.WriteAllText(configPath, configContent);
 
                 return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 列出指定目录中的所有配置文件
+        /// </summary>
+        /// <param name="configDirectory">配置文件目录</param>
+        /// <returns>配置文件路径列表</returns>
+        public static string[] ListConfigurationFiles(string configDirectory)
+        {
+            try
+            {
+                if (!Directory.Exists(configDirectory))
+                {
+                    return new string[0];
+                }
+
+                return Directory.GetFiles(configDirectory, "*.json", SearchOption.TopDirectoryOnly);
+            }
+            catch
+            {
+                return new string[0];
+            }
+        }
+
+        /// <summary>
+        /// 创建默认配置文件
+        /// </summary>
+        /// <param name="configPath">配置文件路径</param>
+        /// <returns>创建结果</returns>
+        public static bool CreateDefaultConfiguration(string configPath)
+        {
+            try
+            {
+                var defaultConfig = new HardwareConfig();
+                return SaveConfiguration(defaultConfig, configPath);
             }
             catch
             {
